@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# must run as root
+
+from scapy.all import srp,Ether,ARP,conf #Import needed modules from scapy
+
+interface = "eth0"
+ips = "192.168.42.0/24"
+
+conf.verb = 0 #Actually start scanning
+ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = ips), timeout = 2, 	iface=interface,inter=0.1)
+
+for snd,rcv in ans:
+	print rcv.sprintf(r"%Ether.src% - %ARP.psrc%") #Display results
