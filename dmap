@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# must run as root
+import sys
+from netaddr import IPNetwork
+from clint.textui import progress
+from scapy.all import sr,srp,Ether,ARP,IP,ICMP,conf #Import needed modules from scapy
+
+interface = None
+
+def coroutine(func):
+    def start(*args,**kwargs):
+        cr = func(*args,**kwargs)
+        cr.next()
+        return cr
+    return start
+
+@coroutine
+def arpsweep(target):
+    while True:
+        netr = (yield)
+        print "Starting ARP sweep"
+        results = []
+        for i in progress.bar(range(netr.size)):
+            ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(list(netr)[i])), timeout=0.1,iface=interface,inter=0.1)
+            for snd,rcv in ans:
+                #print rcv.sprintf(r"%Ether.src% - %ARP.psrc%")
+                mac = rcv.sprintf(r"%Ether.src%")
+                ip = rcv.sprintf(r"%ARP.psrc%")
+                results.append([mac, ip])
+        for result in results:
+            print "MAC: %s IP: %s" % (result[0],result[1])
+        target.send(results)
+
+@coroutine
+def pingsweep():
+    while True:
+        ips = (yield)
+        results = []
+        print "ips %s" % ips
+        for tuple in ips:
+            ip = tuple[1]
+            print ("ip %s" % ip)
+            ans,unans=sr(IP(dst=ip)/ICMP())
+            for snd,rcv in ans:
+                results.append([rcv.sprintf("%IP.src%")])
+        for result in results:
+            print "Live IP: %s" % (result[0])
+
+def scan(netr, target):
+    target.send(netr)
+
+def main(argv):
+    global interface 
+    interface = "eth0"
+    ips = "192.168.42.0/24"
+    netr = IPNetwork(ips)
+    conf.verb = 0 #Actually start scanning
+
+    # if target net range is in our LAN broadcast domain, we can do an ARP sweep
+    scan(netr, arpsweep(pingsweep()))
+    # else we'll need to do a ICMP ping sweep
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
+    reload(sys)
+    sys.setdefaultencoding("utf-8")
