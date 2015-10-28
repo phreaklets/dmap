@@ -42,7 +42,7 @@ def pingsweep(target):
         print ips
         results = []
         #for tuple in ips:
-        for i in progress.bar(range(ips.len)):
+        for i in progress.bar(range(len(ips))):
             ip = ips[i][1]
             print("Pinging %s" % ip)
             ans,unans=sr(IP(dst=ip)/ICMP())
