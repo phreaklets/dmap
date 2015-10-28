@@ -29,6 +29,8 @@ import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
 
+interface = None
+
 def coroutine(func):
     def start(*args,**kwargs):
         cr = func(*args,**kwargs)
@@ -51,7 +53,9 @@ def arpsweep(target):
                 results.append([mac, ip])
         for result in results:
             print "MAC: %s IP: %s" % (result[0],result[1])
-        target.send(results)
+
+        netr_results = [IPAddress(x[1]) for x in results]
+        target.send(netr_results)
 
 @coroutine
 def pingsweep(target):
@@ -60,8 +64,8 @@ def pingsweep(target):
         print "Starting ICMP Ping sweep"
         results = []
         for i in progress.bar(range(len(ips))):
-            ip = ips[i][1]
-            ans,unans=sr(IP(dst=ip)/ICMP(),timeout=0.5)
+            ip = ips[i]
+            ans,unans=sr(IP(dst=str(ip))/ICMP(),timeout=0.5)
             for snd,rcv in ans:
                 results.append(rcv.sprintf("%IP.src%"))
         for result in results:
@@ -158,7 +162,7 @@ def main(argv):
     else:
         # else we'll need to do a ICMP ping sweep
         try:
-            scan(target, pingsweep(synsweep()))
+            scan([target], pingsweep(synsweep()))
         except KeyboardInterrupt:
             sys.exit()
 
