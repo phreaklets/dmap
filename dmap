@@ -4,6 +4,7 @@
 # d(dramallama)map - a minimalist network scanner - (C) 2015 Richard Gold
 
 # must run as root for access to privileged functions (raw packets)
+import pprint
 import sys
 from netaddr import IPNetwork, IPAddress
 from clint.textui import progress
@@ -45,7 +46,7 @@ def pingsweep(target):
         results = []
         for i in progress.bar(range(len(ips))):
             ip = ips[i][1]
-            ans,unans=sr(IP(dst=ip)/ICMP())
+            ans,unans=sr(IP(dst=ip)/ICMP(),timeout=0.1)
             for snd,rcv in ans:
                 results.append(rcv.sprintf("%IP.src%"))
         for result in results:
@@ -100,8 +101,7 @@ def synsweep():
                 elif(stealth_scan_resp.haslayer(ICMP)):
                     if(int(stealth_scan_resp.getlayer(ICMP).type)==3 and int(stealth_scan_resp.getlayer(ICMP).code) in [1,2,3,9,10,13]):
                         pass
-        for ip_ports in all_ips_ports:
-            print "IP address %s Ports: %s" (ip_ports[0],ip_ports[1])
+        pprint.pprint(all_ips_ports)
 
 def scan(netr, target):
     target.send(netr)
