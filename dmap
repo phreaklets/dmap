@@ -4,11 +4,27 @@
 # d(dramallama)map - a minimalist network scanner - (C) 2015 Richard Gold
 
 # must run as root for access to privileged functions (raw packets)
+"""D(dramallama)map
+Usage:
+  dmap <iprange>
+  dmap [-a] ([-p]|[-t]) [--syn=<type>] [--interface=<iface>] <iprange>
+
+Options:
+  -h --help     Show this screen.
+  --version     Show version.
+  -a --arp      Perform ARP sweep
+  -p --ping     Perform ICMP ping sweep
+  -t --tcp      Perform TCP ping sweep
+  --interface=<iface>      Perform TCP ping sweep [default: eth0].
+  --syn=<type>  Perform TCP SYN port scan [default: top].
+"""
+from docopt import docopt
 import pprint
 import sys
 from netaddr import IPNetwork, IPAddress
 from clint.textui import progress
 import logging
+# turn off those irritating IPv6 warning messages
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
 
@@ -46,7 +62,7 @@ def pingsweep(target):
         results = []
         for i in progress.bar(range(len(ips))):
             ip = ips[i][1]
-            ans,unans=sr(IP(dst=ip)/ICMP(),timeout=0.1)
+            ans,unans=sr(IP(dst=ip)/ICMP(),timeout=0.5)
             for snd,rcv in ans:
                 results.append(rcv.sprintf("%IP.src%"))
         for result in results:
@@ -54,7 +70,7 @@ def pingsweep(target):
         target.send(results)
 
 # @coroutine
-# def tcping(target):
+# def tcpingsweep(target):
 #     while True:
 #         ips = (yield)
 #         print "Starting TCP Ping sweep"
@@ -70,7 +86,7 @@ def pingsweep(target):
 
 @coroutine
 def synsweep():
-    #ports = "7,9,13,21,22,23,25,26,37,53,79,80,81,88,106,110,111,113,119,135,139,143,144,179,199,389,427,443-445,465,513-515,543,544,548,554,587,631,646,873,990,993,995,1025,1026,1027,1028,1029,1110,1433,1720,1723,1755,1900,2000,2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000,6001,6646,7070,8000,8008,8009,8080,8081,8443,8888,9100,9999,10000,32768,49152,49153,49154,49155,49156,49157"
+    #ports = "7,9,13,21,22,23,25,26,37,53,79,80,81,88,106,110,111,113,119,135,139,143,144,179,199,389,427,443,444,445,465,513,514,515,543,544,548,554,587,631,646,873,990,993,995,1025,1026,1027,1028,1029,1110,1433,1720,1723,1755,1900,2000,2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000,6001,6646,7070,8000,8008,8009,8080,8081,8443,8888,9100,9999,10000,32768,49152,49153,49154,49155,49156,49157"
     ports = "21,22,23,80,139,443,445"
     port_list = ports.split(",")
 
@@ -82,7 +98,7 @@ def synsweep():
             dst_ip = ips[i]
             for dst_port in port_list:
                 src_port = RandShort()
-                stealth_scan_resp = sr1(IP(dst=dst_ip)/TCP(sport=src_port,dport=int(dst_port),flags="S"),timeout=10)
+                stealth_scan_resp = sr1(IP(dst=dst_ip)/TCP(sport=src_port,dport=int(dst_port),flags="S"),timeout=1)
                 if(str(type(stealth_scan_resp))=="<type 'NoneType'>"):
                     pass
                 elif(stealth_scan_resp.haslayer(TCP)):
@@ -119,6 +135,8 @@ def main(argv):
     #scan(netr, pingsweep(synsweep()))
 
 if __name__ == "__main__":
+    arguments = docopt(__doc__, version='D(dramallama)map 0.1')
+    print(arguments)
     main(sys.argv[1:])
     reload(sys)
     sys.setdefaultencoding("utf-8")
