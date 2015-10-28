@@ -7,6 +7,8 @@
 import sys
 from netaddr import IPNetwork, IPAddress
 from clint.textui import progress
+import logging
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
 
 interface = None
@@ -39,18 +41,31 @@ def arpsweep(target):
 def pingsweep(target):
     while True:
         ips = (yield)
-        print ips
+        print "Starting ICMP Ping sweep"
         results = []
-        #for tuple in ips:
         for i in progress.bar(range(len(ips))):
             ip = ips[i][1]
-            print("Pinging %s" % ip)
             ans,unans=sr(IP(dst=ip)/ICMP())
             for snd,rcv in ans:
-                results.append([rcv.sprintf("%IP.src%")])
+                results.append(rcv.sprintf("%IP.src%"))
         for result in results:
             print "Live IP: %s" % (result)
         target.send(results)
+
+# @coroutine
+# def tcping(target):
+#     while True:
+#         ips = (yield)
+#         print "Starting TCP Ping sweep"
+#         all_ips = {}
+#         for ip in ips:
+#             ans,unans=sr( IP(dst=ip)/TCP(dport=80,flags="S") )
+#             for snd,rcv in ans:
+#                 tmp_ip_address = (rcv.sprintf("%IP.src%"))
+#                 if (IPAddress(tmp_ip_address).is_unicast()):
+#                         all_ips.append([tmp_ip_address])
+#         print all_ips
+
 
 @coroutine
 def synsweep():
@@ -60,12 +75,11 @@ def synsweep():
 
     while True:
         ips = (yield)
-        print ips
+        print "Starting TCP SYN port scan"
         all_ips_ports = {}
-        for dst_ip in ips:
-            print("SYN scanning %s" % dst_ip)
+        for i in progress.bar(range(len(ips))):
+            dst_ip = ips[i]
             for dst_port in port_list:
-                print("SYN scanning port %s on IP %s" % (dst_port,dst_ip))
                 src_port = RandShort()
                 stealth_scan_resp = sr1(IP(dst=dst_ip)/TCP(sport=src_port,dport=int(dst_port),flags="S"),timeout=10)
                 if(str(type(stealth_scan_resp))=="<type 'NoneType'>"):
@@ -86,7 +100,8 @@ def synsweep():
                 elif(stealth_scan_resp.haslayer(ICMP)):
                     if(int(stealth_scan_resp.getlayer(ICMP).type)==3 and int(stealth_scan_resp.getlayer(ICMP).code) in [1,2,3,9,10,13]):
                         pass
-        print all_ips_ports
+        for ip_ports in all_ips_ports:
+            print "IP address %s Ports: %s" (ip_ports[0],ip_ports[1])
 
 def scan(netr, target):
     target.send(netr)
