@@ -15,10 +15,11 @@ Options:
   -a --arp      Perform ARP sweep
   -p --ping     Perform ICMP ping sweep
   -t --tcp      Perform TCP ping sweep
-  --interface=<iface>      Perform TCP ping sweep [default: eth0].
-  --syn=<type>  Perform TCP SYN port scan [default: top].
+  -i <iface> --interface=<iface>      Perform TCP ping sweep [default: eth0].
+  -s <type> --syn=<type>  Perform TCP SYN port scan [default: top].
 """
 from docopt import docopt
+import netifaces as ni
 import pprint
 import sys
 from netaddr import IPNetwork, IPAddress
@@ -27,8 +28,6 @@ import logging
 # turn off those irritating IPv6 warning messages
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
-
-interface = None
 
 def coroutine(func):
     def start(*args,**kwargs):
@@ -124,19 +123,46 @@ def scan(netr, target):
 
 def main(argv):
     global interface 
-    interface = "eth0"
-    ips = "192.168.42.0/24"
-    netr = IPNetwork(ips)
+    ips = None
+    target = None
+    is_netrange = True
+    arguments = docopt(__doc__, version='D(dramallama)map 0.1')
+    print(arguments)
+
+    if arguments['--interface'] is not None:
+        interface = arguments['--interface']
+    elif arguments['-i'] is not None:
+        interface = arguments['-i']
+
+    if arguments['<iprange>'] is not None:
+        ips = arguments['<iprange>']
+        try:
+            target = IPAddress(ips)
+            is_netrange = False
+            print "Address provided"
+        except ValueError:
+            is_netrange = True
+            print "Netrange provided"
+            target = IPNetwork(ips)
+
     conf.verb = 0 #Actually start scanning
 
     # if target net range is in our LAN broadcast domain, we can do an ARP sweep
-    scan(netr, arpsweep(pingsweep(synsweep())))
-    # else we'll need to do a ICMP ping sweep
-    #scan(netr, pingsweep(synsweep()))
+    if is_netrange:    
+        local_netrange = IPNetwork(ni.ifaddresses(interface)[2][0]['addr'])
+        if target in local_netrange:
+            try:
+                scan(target, arpsweep(pingsweep(synsweep())))
+            except KeyboardInterrupt:
+                sys.exit()
+    else:
+        # else we'll need to do a ICMP ping sweep
+        try:
+            scan(target, pingsweep(synsweep()))
+        except KeyboardInterrupt:
+            sys.exit()
 
 if __name__ == "__main__":
-    arguments = docopt(__doc__, version='D(dramallama)map 0.1')
-    print(arguments)
     main(sys.argv[1:])
     reload(sys)
     sys.setdefaultencoding("utf-8")
