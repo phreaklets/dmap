@@ -131,7 +131,7 @@ def main(argv):
     target = None
     is_netrange = True
     arguments = docopt(__doc__, version='D(dramallama)map 0.1')
-    print(arguments)
+    #print(arguments)
 
     if arguments['--interface'] is not None:
         interface = arguments['--interface']
@@ -143,10 +143,8 @@ def main(argv):
         try:
             target = IPAddress(ips)
             is_netrange = False
-            print "Address provided"
         except ValueError:
             is_netrange = True
-            print "Netrange provided"
             target = IPNetwork(ips)
 
     conf.verb = 0 #Actually start scanning
