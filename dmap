@@ -7,7 +7,7 @@
 """D(dramallama)map
 Usage:
   dmap <iprange>
-  dmap [-a] ([-p]|[-t]) [--syn=<type>] [--interface=<iface>] <iprange>
+  dmap [-a|--arp] ([-p]|[-t]) [-s <type|--syn=<type>] [-i <iface>|--interface=<iface>] <iprange>
 
 Options:
   -h --help     Show this screen.
@@ -15,8 +15,8 @@ Options:
   -a --arp      Perform ARP sweep
   -p --ping     Perform ICMP ping sweep
   -t --tcp      Perform TCP ping sweep
-  -i <iface> --interface=<iface>      Perform TCP ping sweep [default: eth0].
-  -s <type> --syn=<type>  Perform TCP SYN port scan [default: top].
+  -i <iface> --interface=<iface>      Choose interface for scanning  [default: eth0].
+  -s <type> --syn=<type>  Perform TCP SYN port scan  [default: top].
 """
 from docopt import docopt
 import netifaces as ni
@@ -39,7 +39,27 @@ def coroutine(func):
     return start
 
 @coroutine
-def arpsweep(target):
+def arpsweep_address(target):
+    while True:
+        netr = (yield)
+        print "Starting ARP sweep"
+        results = []
+        for i in progress.bar(range(1)):
+            ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(netr)), timeout=0.1,iface=interface,inter=0.1)
+            for snd,rcv in ans:
+                #print rcv.sprintf(r"%Ether.src% - %ARP.psrc%")
+                mac = rcv.sprintf(r"%Ether.src%")
+                ip = rcv.sprintf(r"%ARP.psrc%")
+                results.append([mac, ip])
+        for result in results:
+            print "MAC: %s IP: %s" % (result[0],result[1])
+
+        netr_results = [IPAddress(x[1]) for x in results]
+        if target is not None:
+            target.send(netr_results)
+
+@coroutine
+def arpsweep_netrange(target):
     while True:
         netr = (yield)
         print "Starting ARP sweep"
@@ -55,7 +75,9 @@ def arpsweep(target):
             print "MAC: %s IP: %s" % (result[0],result[1])
 
         netr_results = [IPAddress(x[1]) for x in results]
-        target.send(netr_results)
+        if target is not None:
+            target.send(netr_results)
+
 
 @coroutine
 def pingsweep(target):
@@ -70,25 +92,26 @@ def pingsweep(target):
                 results.append(rcv.sprintf("%IP.src%"))
         for result in results:
             print "Live IP: %s" % (result)
-        target.send(results)
+        if target is not None:
+            target.send(results)
 
-# @coroutine
-# def tcpingsweep(target):
-#     while True:
-#         ips = (yield)
-#         print "Starting TCP Ping sweep"
-#         all_ips = {}
-#         for ip in ips:
-#             ans,unans=sr( IP(dst=ip)/TCP(dport=80,flags="S") )
-#             for snd,rcv in ans:
-#                 tmp_ip_address = (rcv.sprintf("%IP.src%"))
-#                 if (IPAddress(tmp_ip_address).is_unicast()):
-#                         all_ips.append([tmp_ip_address])
-#         print all_ips
+@coroutine
+def tcpsweep(target):
+    while True:
+        ips = (yield)
+        print "Starting TCP Ping sweep"
+        all_ips = {}
+        for ip in ips:
+            ans,unans=sr( IP(dst=ip)/TCP(dport=80,flags="S") )
+            for snd,rcv in ans:
+                tmp_ip_address = (rcv.sprintf("%IP.src%"))
+                if (IPAddress(tmp_ip_address).is_unicast()):
+                        all_ips.append([tmp_ip_address])
+        print all_ips
 
 
 @coroutine
-def synsweep():
+def synscan():
     #ports = "7,9,13,21,22,23,25,26,37,53,79,80,81,88,106,110,111,113,119,135,139,143,144,179,199,389,427,443,444,445,465,513,514,515,543,544,548,554,587,631,646,873,990,993,995,1025,1026,1027,1028,1029,1110,1433,1720,1723,1755,1900,2000,2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000,6001,6646,7070,8000,8008,8009,8080,8081,8443,8888,9100,9999,10000,32768,49152,49153,49154,49155,49156,49157"
     ports = "21,22,23,80,139,443,445"
     port_list = ports.split(",")
@@ -128,10 +151,15 @@ def scan(netr, target):
 def main(argv):
     global interface 
     ips = None
-    target = None
+    target_ips = None
     is_netrange = True
+    is_arpsweep = None
+    is_pingsweep = None
+    is_tcpsweep = None
+    is_synscan = None
+    netrange_in_localrange = None
     arguments = docopt(__doc__, version='D(dramallama)map 0.1')
-    #print(arguments)
+    print(arguments)
 
     if arguments['--interface'] is not None:
         interface = arguments['--interface']
@@ -141,28 +169,118 @@ def main(argv):
     if arguments['<iprange>'] is not None:
         ips = arguments['<iprange>']
         try:
-            target = IPAddress(ips)
+            target_ips = IPAddress(ips)
             is_netrange = False
+            #print "IP addr"
         except ValueError:
+            target_ips = IPNetwork(ips)
             is_netrange = True
-            target = IPNetwork(ips)
+            #print "network range"
+
+    if is_netrange:    
+        local_netrange = IPNetwork(ni.ifaddresses(interface)[2][0]['addr'])
+        if local_netrange in target_ips:
+            netrange_in_localrange = True
+        else:
+            netrange_in_localrange = False
 
     conf.verb = 0 #Actually start scanning
 
-    # if target net range is in our LAN broadcast domain, we can do an ARP sweep
-    if is_netrange:    
-        local_netrange = IPNetwork(ni.ifaddresses(interface)[2][0]['addr'])
-        if target in local_netrange:
+    if arguments['--arp']:
+        print "Is ARP Sweep"
+        is_arpsweep = True
+    else:
+        print "Is not ARP Sweep"
+        is_arpsweep = False
+
+    if is_arpsweep and is_netrange and not netrange_in_localrange:
+        print "ARP Sweep specified but net range is not in the local range, exiting"
+        sys.exit()
+
+    if arguments['--ping'] is True:
+        is_pingsweep = True
+    else:
+        is_pingsweep = False
+
+    if arguments['--tcp'] is True:
+        is_tcpsweep = True
+    else:
+        is_tcpsweep = False
+
+    if arguments['--syn'] is True:
+        is_synscan = True
+    else:
+        is_synscan = False
+
+    if is_netrange and is_arpsweep:
+        if is_pingsweep:
+            if is_synscan:
+                try:
+                    scan(target_ips, arpsweep_netrange(pingsweep(synscan())))
+                except KeyboardInterrupt:
+                    sys.exit()
+            else:
+                try:
+                    scan(target_ips, arpsweep_netrange(pingsweep(None)))
+                except KeyboardInterrupt:
+                    sys.exit()
+        elif is_tcpsweep:
+            if is_synscan:
+                try:
+                    scan(target_ips, arpsweep_netrange(tcpsweep(synscan())))
+                except KeyboardInterrupt:
+                    sys.exit()
+            else:
+                try:
+                    scan(target_ips, arpsweep_netrange(tcpsweep(None)))
+                except KeyboardInterrupt:
+                    sys.exit()
+    elif not is_netrange and is_arpsweep:
+        if is_pingsweep:
+            if is_synscan:
+                try:
+                    scan(target_ips, arpsweep_address(pingsweep(synscan())))
+                except KeyboardInterrupt:
+                    sys.exit()
+            else:
+                try:
+                    scan(target_ips, arpsweep_address(pingsweep(None)))
+                except KeyboardInterrupt:
+                    sys.exit()
+        elif is_tcpsweep:
+            if is_synscan:
+                try:
+                    scan(target_ips, arpsweep_address(tcpsweep(synscan())))
+                except KeyboardInterrupt:
+                    sys.exit()
+            else:
+                try:
+                    scan(target_ips, arpsweep_address(tcpsweep(None)))
+                except KeyboardInterrupt:
+                    sys.exit()
+
+    if is_pingsweep and not is_arpsweep:
+        if is_synscan:
             try:
-                scan(target, arpsweep(pingsweep(synsweep())))
+                scan(target_ips, pingsweep(synscan()))
             except KeyboardInterrupt:
                 sys.exit()
-    else:
-        # else we'll need to do a ICMP ping sweep
-        try:
-            scan([target], pingsweep(synsweep()))
-        except KeyboardInterrupt:
-            sys.exit()
+        else:
+            try:
+                scan(target_ips, pingsweep(None))
+            except KeyboardInterrupt:
+                sys.exit()
+    elif is_tcpsweep and not is_arpsweep:
+        if is_synscan:
+            try:
+                scan(target_ips, tcpsweep(synscan()))
+            except KeyboardInterrupt:
+                sys.exit()
+        else:
+            try:
+                scan(target_ips, tcpsweep(None))
+            except KeyboardInterrupt:
+                sys.exit()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
