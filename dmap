@@ -5,19 +5,24 @@
 
 # must run as root for access to privileged functions (raw packets)
 """D(dramallama)map
+
 Usage:
   dmap <iprange>
-  dmap [-a|--arp] ([-p]|[-t]) [-s <type|--syn=<type>] [-i <iface>|--interface=<iface>] <iprange>
+  dmap [-a] [-s] ([-p]|[-t]) [-i <iface>|--interface=<iface>] <iprange>
 
 Options:
-  -h --help     Show this screen.
-  --version     Show version.
-  -a --arp      Perform ARP sweep
-  -p --ping     Perform ICMP ping sweep
-  -t --tcp      Perform TCP ping sweep
-  -i <iface> --interface=<iface>      Choose interface for scanning  [default: eth0].
-  -s <type> --syn=<type>  Perform TCP SYN port scan  [default: top].
+  -h, --help     Show this screen.
+  -v, --version  Show version.
+  -a, --arp      Perform ARP sweep.
+  -s, --scan     Perform port scan.
+  -p, --ping     Perform ICMP ping sweep.
+  -t, --tcp      Perform TCP ping sweep.
+  -i <iface>, --interface=<iface>      Choose interface for scanning  [default: eth0].
+  -st <type>, --scan-type=<type>  Set type of port scan  [default: top].
+
 """
+#  dmap [-a] [-s] (-p|-t) <iprange>
+#  dmap [-as] (-p|-t) [-st <type>|--scan-type=<type>] [-i <iface>|--interface=<iface>] <iprange>
 from docopt import docopt
 import netifaces as ni
 import pprint
@@ -89,7 +94,8 @@ def pingsweep(target):
             ip = ips[i]
             ans,unans=sr(IP(dst=str(ip))/ICMP(),timeout=0.5)
             for snd,rcv in ans:
-                results.append(rcv.sprintf("%IP.src%"))
+                if (IPAddress(rcv.sprintf("%IP.src%")).is_unicast()):
+                    results.append(rcv.sprintf("%IP.src%"))
         for result in results:
             print "Live IP: %s" % (result)
         if target is not None:
@@ -100,15 +106,17 @@ def tcpsweep(target):
     while True:
         ips = (yield)
         print "Starting TCP Ping sweep"
-        all_ips = {}
-        for ip in ips:
-            ans,unans=sr( IP(dst=ip)/TCP(dport=80,flags="S") )
+        results = []
+        for i in progress.bar(range(len(ips))):
+            ip = ips[i]
+            ans,unans=sr( IP(dst=str(ip))/TCP(dport=80,flags="S"),timeout=0.5 )
             for snd,rcv in ans:
-                tmp_ip_address = (rcv.sprintf("%IP.src%"))
-                if (IPAddress(tmp_ip_address).is_unicast()):
-                        all_ips.append([tmp_ip_address])
-        print all_ips
-
+                if (IPAddress(rcv.sprintf("%IP.src%")).is_unicast()):
+                    results.append(rcv.sprintf("%IP.src%"))
+        for result in results:
+            print "Live IP: %s" % (result)
+        if target is not None:
+            target.send(results)
 
 @coroutine
 def synscan():
@@ -207,7 +215,7 @@ def main(argv):
     else:
         is_tcpsweep = False
 
-    if arguments['--syn'] is True:
+    if arguments['--scan'] is True:
         is_synscan = True
     else:
         is_synscan = False
@@ -235,6 +243,17 @@ def main(argv):
                     scan(target_ips, arpsweep_netrange(tcpsweep(None)))
                 except KeyboardInterrupt:
                     sys.exit()
+        else:
+            if is_synscan:
+                try:
+                    scan(target_ips, arpsweep_netrange(synscan()))
+                except KeyboardInterrupt:
+                    sys.exit()
+            else:
+                try:
+                    scan(target_ips, arpsweep_netrange(None))
+                except KeyboardInterrupt:
+                    sys.exit()
     elif not is_netrange and is_arpsweep:
         if is_pingsweep:
             if is_synscan:
@@ -256,6 +275,17 @@ def main(argv):
             else:
                 try:
                     scan(target_ips, arpsweep_address(tcpsweep(None)))
+                except KeyboardInterrupt:
+                    sys.exit()
+        else:
+            if is_synscan:
+                try:
+                    scan(target_ips, arpsweep_address(synscan()))
+                except KeyboardInterrupt:
+                    sys.exit()
+            else:
+                try:
+                    scan(target_ips, arpsweep_address(None))
                 except KeyboardInterrupt:
                     sys.exit()
 
