@@ -4,6 +4,10 @@
 # d(dramallama)map - a minimalist network scanner - (C) 2015 Richard Gold
 
 # must run as root for access to privileged functions (raw packets)
+
+# TODO
+# - Add just ARP sweep -> to SYN scan
+
 """D(dramallama)map
 
 Usage:
@@ -92,7 +96,7 @@ def pingsweep(target):
         results = []
         for i in progress.bar(range(len(ips))):
             ip = ips[i]
-            ans,unans=sr(IP(dst=str(ip))/ICMP(),timeout=0.5)
+            ans,unans=sr(IP(dst=str(ip))/ICMP(),timeout=0.1,inter=0.1)
             for snd,rcv in ans:
                 if (IPAddress(rcv.sprintf("%IP.src%")).is_unicast()):
                     results.append(rcv.sprintf("%IP.src%"))
@@ -109,7 +113,7 @@ def tcpsweep(target):
         results = []
         for i in progress.bar(range(len(ips))):
             ip = ips[i]
-            ans,unans=sr( IP(dst=str(ip))/TCP(dport=80,flags="S"),timeout=0.5 )
+            ans,unans=sr( IP(dst=str(ip))/TCP(dport=80,flags="S"),timeout=0.1,inter=0.1)
             for snd,rcv in ans:
                 if (IPAddress(rcv.sprintf("%IP.src%")).is_unicast()):
                     results.append(rcv.sprintf("%IP.src%"))
@@ -117,7 +121,6 @@ def tcpsweep(target):
             print "Live IP: %s" % (result)
         if target is not None:
             target.send(results)
-
 @coroutine
 def synscan():
     #ports = "7,9,13,21,22,23,25,26,37,53,79,80,81,88,106,110,111,113,119,135,139,143,144,179,199,389,427,443,444,445,465,513,514,515,543,544,548,554,587,631,646,873,990,993,995,1025,1026,1027,1028,1029,1110,1433,1720,1723,1755,1900,2000,2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000,6001,6646,7070,8000,8008,8009,8080,8081,8443,8888,9100,9999,10000,32768,49152,49153,49154,49155,49156,49157"
@@ -292,7 +295,7 @@ def main(argv):
     if is_pingsweep and not is_arpsweep:
         if is_synscan:
             try:
-                scan(target_ips, pingsweep(synscan()))
+                scan([target_ips], pingsweep(synscan()))
             except KeyboardInterrupt:
                 sys.exit()
         else:
@@ -303,7 +306,7 @@ def main(argv):
     elif is_tcpsweep and not is_arpsweep:
         if is_synscan:
             try:
-                scan(target_ips, tcpsweep(synscan()))
+                scan([target_ips], tcpsweep(synscan()))
             except KeyboardInterrupt:
                 sys.exit()
         else:
