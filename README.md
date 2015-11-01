@@ -12,7 +12,7 @@ Since ARP sweeps are not viable for WAN scanning, dmap has ICMP ping and TCP pin
 of the local broadcast domain.
 E.g., `dmap -p -s 45.33.32.156` or `dmap -t -s 45.33.32.156`
 
-Sometimes it's fun to see the different results, so you can do: dmap -a -p 192.168.1.0/24 or dmap -a -t 192.168.1.0/24
+Sometimes it's fun to see the different results, so you can do: `dmap -a -p 192.168.1.0/24` or `dmap -a -t 192.168.1.0/24`
 
 The code is extremely rough'n'ready, so apologies for that. It's also extremely slow, as I haven't added multiprocessing
 support yet. It uses netaddr, docopts, scapy, clint and netifaces to get the job done. Most functions require access to
