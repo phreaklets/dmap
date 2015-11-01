@@ -1,5 +1,5 @@
 # dmap
-Minimalist network scanner
+**Minimalist network scanner**
 
 I was frustrated one day with nmap not doing exactly what I wanted and wanted to play around a little bit with scapy.
 
