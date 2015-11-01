@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# d(dramallama)map - a minimalist network scanner - (C) 2015 Richard Gold
+# d(dramallama)map - a minimalist network scanner - (C) 2015 phreaklets
 
 # must run as root for access to privileged functions (raw packets)
 
@@ -173,7 +173,7 @@ def main(argv):
     is_synscan = None
     netrange_in_localrange = None
     arguments = docopt(__doc__, version='D(dramallama)map 0.1')
-    print(arguments)
+    #print(arguments)
 
     if arguments['--interface'] is not None:
         interface = arguments['--interface']
