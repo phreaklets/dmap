@@ -6,6 +6,7 @@
 # must run as root for access to privileged functions (raw packets)
 
 # TODO
+# - Add multiprocessing support
 
 """D(dramallama)map
 
