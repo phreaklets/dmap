@@ -90,7 +90,6 @@ def arpsweep_address(target):
         for i in progress.bar(range(1)):
             ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(netr)), timeout=0.1,iface=interface,inter=0.1)
             for snd,rcv in ans:
-                #print rcv.sprintf(r"%Ether.src% - %ARP.psrc%")
                 mac = rcv.sprintf(r"%Ether.src%")
                 ip = rcv.sprintf(r"%ARP.psrc%")
                 results.append([mac, ip])
