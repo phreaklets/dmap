@@ -25,6 +25,7 @@ Options:
   -st <type>, --scan-type=<type>  Set type of port scan  [default: top].
 
 """
+from multiprocessing import Pool
 from docopt import docopt
 import netifaces as ni
 import pprint
@@ -45,6 +46,41 @@ def coroutine(func):
         return cr
     return start
 
+def arpsweep_multiprocessing(ip):
+    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(ip)), timeout = 0.1,iface=interface,inter=0.1)
+    for snd,rcv in ans:
+        mac = rcv.sprintf(r"%Ether.src%")
+        ip = rcv.sprintf(r"%ARP.psrc%")
+
+        if mac is not None and ip is not None:
+            return ([mac, ip])
+    return None
+
+@coroutine
+def arpsweep_netrange(target):
+    while True:
+        netr = (yield)
+        print "Starting ARP sweep"
+        p = Pool(8)
+
+        try:
+            temp_results = (p.map(arpsweep_multiprocessing, list(netr)))
+        except KeyboardInterrupt:
+            sys.exit()
+            p.terminate()
+            p.join()
+        p.close()
+        p.join()
+
+        results = filter(None, temp_results)
+
+        for result in results:
+            print "MAC: %s IP: %s" % (result[0],result[1])
+
+        if target is not None:
+            netr_results = [IPAddress(x[1]) for x in results]
+            target.send(netr_results)
+
 @coroutine
 def arpsweep_address(target):
     while True:
@@ -64,27 +100,6 @@ def arpsweep_address(target):
         if target is not None:
             netr_results = [IPAddress(x[1]) for x in results]
             target.send(netr_results)
-
-@coroutine
-def arpsweep_netrange(target):
-    while True:
-        netr = (yield)
-        print "Starting ARP sweep"
-        results = []
-        for i in progress.bar(range(netr.size)):
-            ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(list(netr)[i])), timeout=0.1,iface=interface,inter=0.1)
-            for snd,rcv in ans:
-                #print rcv.sprintf(r"%Ether.src% - %ARP.psrc%")
-                mac = rcv.sprintf(r"%Ether.src%")
-                ip = rcv.sprintf(r"%ARP.psrc%")
-                results.append([mac, ip])
-        for result in results:
-            print "MAC: %s IP: %s" % (result[0],result[1])
-
-        if target is not None:
-            netr_results = [IPAddress(x[1]) for x in results]
-            target.send(netr_results)
-
 
 @coroutine
 def pingsweep(target):
