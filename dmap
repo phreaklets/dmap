@@ -213,7 +213,7 @@ def main(argv):
         else:
             netrange_in_localrange = False
 
-    conf.verb = 0 #Actually start scanning
+    conf.verb = 0
 
     if arguments['--arp']:
         is_arpsweep = True
