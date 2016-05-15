@@ -5,8 +5,6 @@
 
 # must run as root for access to privileged functions (raw packets)
 
-# TODO
-
 """D(dramallama)map
 
 Usage:
