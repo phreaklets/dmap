@@ -223,17 +223,17 @@ def main(argv):
         print "ARP Sweep specified but net range is not in the local range, exiting"
         sys.exit()
 
-    if arguments['--ping'] is True:
+    if arguments['--ping']:
         is_pingsweep = True
     else:
         is_pingsweep = False
 
-    if arguments['--tcping'] is True:
+    if arguments['--tcping']:
         is_tcpsweep = True
     else:
         is_tcpsweep = False
 
-    if arguments['--scan'] is True:
+    if arguments['--scan']:
         is_synscan = True
     else:
         is_synscan = False
@@ -273,7 +273,7 @@ def main(argv):
                     scan(target_ips, arpsweep_netrange(None))
                 except KeyboardInterrupt:
                     sys.exit()
-    # ARP scan of an address
+    # ARP scan of a unicast address
     elif not is_netrange and is_arpsweep:
         if is_pingsweep:
             if is_synscan:
@@ -309,7 +309,7 @@ def main(argv):
                 except KeyboardInterrupt:
                     sys.exit()
     
-    # non-ARP scan
+    # Ping sweep scan
     if is_netrange:
         if is_pingsweep and not is_arpsweep:
             if is_synscan:
@@ -356,6 +356,9 @@ def main(argv):
                     scan([target_ips], tcpsweep(None))
                 except KeyboardInterrupt:
                     sys.exit()
+        elif is_synscan and not is_arpsweep and not is_pingsweep and not is_tcpsweep:
+            print "You need to specify a discovery method: either ARP, ICMP or TCP"
+            sys.exit()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
