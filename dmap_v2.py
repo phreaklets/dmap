@@ -6,6 +6,7 @@ import click
 import netifaces as ni
 import pprint
 import sys
+import netaddr
 from netaddr import IPNetwork, IPAddress
 import logging
 import imp
@@ -40,13 +41,23 @@ def arpsweep_multiprocessing(ip):
             return ({'mac_addr':mac,'ip_addr':ip})
     return None
 
+def is_netrange(cidr):
+    try:
+        tmp = IPNetwork(cidr)
+        return True
+    except Exception as e:
+        print("{} is not a valid IP Network range".format(cidr))
+        return False
+
 @main.command()
-@click.option('--ip_range', help='IP range for scanning', required=True)
+@click.option('--net', '-n', 'net_', help='IP range for scanning', required=True)
 @click.option('--json', '-j', 'json_', is_flag=True)
 @click.argument('command')
-def scan(command, ip_range, json_):
+def scan(command, net_, json_):
     t = Terminal()
-    netr = IPNetwork(ip_range)
+    if not is_netrange(net_):
+        sys.exit(1)        
+    netr = IPNetwork(net_)
     results = {}
     if command == 'arp':
         if not json_:
