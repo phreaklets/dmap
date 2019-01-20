@@ -3,11 +3,11 @@
 
 I was frustrated one day with nmap not doing exactly what I wanted and wanted to play around a little bit with scapy.
 
-##LAN scanning
+## LAN scanning
 I find the best results are to just do an ARP sweep of the network and then TCP SYN scan the discovered hosts.
 E.g., `dmap -a -s 192.168.1.0/24`
 
-##WAN scanning
+## WAN scanning
 Since ARP sweeps are not viable for WAN scanning, dmap has ICMP ping and TCP ping options for scanning hosts outside
 of the local broadcast domain.
 E.g., `dmap -p -s 45.33.32.156` or `dmap -t -s 45.33.32.156`
