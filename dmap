@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # d(dramallama)map - a minimalist network scanner - (C) 2015 phreaklets
@@ -30,16 +30,17 @@ import sys
 from netaddr import IPNetwork, IPAddress
 from clint.textui import progress
 import logging
+import imp
 # turn off those irritating IPv6 warning messages
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
-from scapy.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
+from kamene.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
 
 interface = None
 
 def coroutine(func):
     def start(*args,**kwargs):
         cr = func(*args,**kwargs)
-        cr.next()
+        next(cr)
         return cr
     return start
 
@@ -57,7 +58,7 @@ def arpsweep_multiprocessing(ip):
 def arpsweep_netrange(target):
     while True:
         netr = (yield)
-        print "Starting ARP sweep"
+        print("Starting ARP sweep")
         p = Pool(8)
 
         try:
@@ -69,10 +70,10 @@ def arpsweep_netrange(target):
         p.close()
         p.join()
 
-        results = filter(None, temp_results)
+        results = [_f for _f in temp_results if _f]
 
         for result in results:
-            print "MAC: %s IP: %s" % (result[0],result[1])
+            print("MAC: %s IP: %s" % (result[0],result[1]))
 
         if target is not None:
             netr_results = [IPAddress(x[1]) for x in results]
@@ -82,16 +83,16 @@ def arpsweep_netrange(target):
 def arpsweep_address(target):
     while True:
         netr = (yield)
-        print "Starting ARP sweep"
+        print("Starting ARP sweep")
         results = []
-        for i in progress.bar(range(1)):
+        for i in progress.bar(list(range(1))):
             ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(netr)), timeout=0.1,iface=interface,inter=0.1)
             for snd,rcv in ans:
                 mac = rcv.sprintf(r"%Ether.src%")
                 ip = rcv.sprintf(r"%ARP.psrc%")
                 results.append([mac, ip])
         for result in results:
-            print "MAC: %s IP: %s" % (result[0],result[1])
+            print("MAC: %s IP: %s" % (result[0],result[1]))
 
         if target is not None:
             netr_results = [IPAddress(x[1]) for x in results]
@@ -101,16 +102,16 @@ def arpsweep_address(target):
 def pingsweep(target):
     while True:
         ips = (yield)
-        print "Starting ICMP Ping sweep"
+        print("Starting ICMP Ping sweep")
         results = []
-        for i in progress.bar(range(len(ips))):
+        for i in progress.bar(list(range(len(ips)))):
             ip = ips[i]
             ans,unans=sr(IP(dst=str(ip))/ICMP(),timeout=0.1,inter=0.1)
             for snd,rcv in ans:
                 if (IPAddress(rcv.sprintf("%IP.src%")).is_unicast()):
                     results.append(rcv.sprintf("%IP.src%"))
         for result in results:
-            print "Live IP: %s" % (result)
+            print("Live IP: %s" % (result))
 
         if target is not None:
             netr_results = [IPAddress(x) for x in results]
@@ -121,16 +122,16 @@ def pingsweep(target):
 def tcpsweep(target):
     while True:
         ips = (yield)
-        print "Starting TCP Ping sweep"
+        print("Starting TCP Ping sweep")
         results = []
-        for i in progress.bar(range(len(ips))):
+        for i in progress.bar(list(range(len(ips)))):
             ip = ips[i]
             ans,unans=sr( IP(dst=str(ip))/TCP(dport=80,flags="S"),timeout=0.1,inter=0.1)
             for snd,rcv in ans:
                 if (IPAddress(rcv.sprintf("%IP.src%")).is_unicast()):
                     results.append(rcv.sprintf("%IP.src%"))
         for result in results:
-            print "Live IP: %s" % (result)
+            print("Live IP: %s" % (result))
 
         if target is not None:
             netr_results = [IPAddress(x) for x in results]
@@ -144,9 +145,9 @@ def synscan():
 
     while True:
         ips = (yield)
-        print "Starting TCP SYN port scan"
+        print("Starting TCP SYN port scan")
         all_ips_ports = {}
-        for i in progress.bar(range(len(ips))):
+        for i in progress.bar(list(range(len(ips)))):
             dst_ip = ips[i]
             for dst_port in port_list:
                 src_port = RandShort()
@@ -218,7 +219,7 @@ def main(argv):
         is_arpsweep = False
 
     if is_arpsweep and is_netrange and not netrange_in_localrange:
-        print "ARP Sweep specified but net range is not in the local range, exiting"
+        print("ARP Sweep specified but net range is not in the local range, exiting")
         sys.exit()
 
     if arguments['--ping']:
@@ -355,10 +356,8 @@ def main(argv):
                 except KeyboardInterrupt:
                     sys.exit()
         elif is_synscan and not is_arpsweep and not is_pingsweep and not is_tcpsweep:
-            print "You need to specify a discovery method: either ARP, ICMP or TCP"
+            print("You need to specify a discovery method: either ARP, ICMP or TCP")
             sys.exit()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-    reload(sys)
-    sys.setdefaultencoding("utf-8")

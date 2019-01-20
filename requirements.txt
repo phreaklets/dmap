@@ -1,0 +1,5 @@
+netaddr==0.7.19
+docopt==0.6.2
+kamene==0.32
+clint==0.5.1
+netifaces==0.10.9
