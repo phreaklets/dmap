@@ -30,7 +30,6 @@ def main():
     """
     pass
 
-
 def arpsweep_multiprocessing(ip):
     ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(ip)), timeout = 0.1,iface="eth0",inter=0.1,verbose=False)
     for snd,rcv in ans:
