@@ -1,10 +1,10 @@
 clint==0.5.1
 kamene==0.32
 Click==7.0
-scapy==2.4.2.dev20
 netifaces==0.10.9
 blessed==1.15.0
 requests==2.9.1
 Pygments==2.1
 docopt==0.6.2
 netaddr==0.7.19
+scapy==2.4.2.dev20
