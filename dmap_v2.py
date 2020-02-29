@@ -22,8 +22,11 @@ from blessed import Terminal
 __author__ = "Phreaklets"
 
 iface_scapy = ""
+timeout_scapy = 0.3
 
-@click.group()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 def main():
     """
     Minimalist network scanner
@@ -31,7 +34,7 @@ def main():
     pass
 
 def arpsweep_multiprocessing(ip):
-    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(ip)), timeout = 0.3, iface=iface_scapy, inter=0.1, verbose=False)
+    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(ip)), timeout = timeout_scapy, iface=iface_scapy, inter=0.1, verbose=False)
     for snd,rcv in ans:
         mac = rcv.sprintf(r"%Ether.src%")
         ip = rcv.sprintf(r"%ARP.psrc%")
@@ -50,8 +53,9 @@ def is_netrange(cidr):
 @main.command()
 @click.option('--json', '-j', 'json_', is_flag=True)
 @click.option('--iface', '-i', 'iface_', default="eth0")
+@click.option('--timeout', '-t', 'timeout_', default=0.3)
 @click.argument('net_')
-def arp(net_, iface_, json_):
+def arp(net_, iface_, timeout_, json_):
     t = Terminal()
     if not is_netrange(net_):
         click.echo("Invalid netrange: {}".format(net_))
@@ -60,9 +64,13 @@ def arp(net_, iface_, json_):
     netr = IPNetwork(net_)
     results = {}
     
-    if iface_ != "eth0":
-        global iface_scapy
-        iface_scapy = iface_
+    global iface_scapy
+    iface_scapy = iface_
+
+    if timeout_ != 0.3:
+        global timeout_scapy
+        timeout_scapy = float(timeout_)
+        
     if not json_:
         print(t.cyan("Starting ARP sweep"))
     p = Pool(64)
