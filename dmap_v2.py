@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import time
+import requests
 import nmap
 import json
 import sys
@@ -50,6 +52,18 @@ def is_netrange(cidr):
     except Exception as e:
         return False
 
+def vendor_lookup(ethsrc):
+    vendor_eth = ethsrc.replace(":", "-")
+    url = "http://api.macvendors.com/{}".format(vendor_eth)
+    try:
+        headers = {'Accept': 'application/json'}
+        response = requests.get(url, headers=headers)
+        if response is not None:
+            return response.text
+    except requests.exceptions.RequestException or requests.exceptions.ConnectionError:
+        print("Requests error occured")
+    return None
+    
 @main.command()
 @click.option('--json', '-j', 'json_', is_flag=True)
 @click.option('--iface', '-i', 'iface_', default="eth0")
@@ -90,7 +104,9 @@ def arp(net_, iface_, timeout_, json_):
         print(json_output)
     else:
         for result in results:
-            print(t.blue("MAC addr"), t.yellow("{}".format(result['mac_addr'])), t.blue("IP addr"), t.yellow("{}".format(result['ip_addr'])))
+            vendor = vendor_lookup(result['mac_addr'])
+            print(t.blue("IP addr"), t.yellow("{0:<15}".format(result['ip_addr'])), t.blue("MAC addr"), t.yellow("{0:<17}".format(result['mac_addr'])), t.blue("Vendor"), t.yellow(vendor))
+            time.sleep(1)
             
 if __name__ == "__main__":
     main()
