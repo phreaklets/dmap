@@ -52,6 +52,7 @@ def is_netrange(cidr):
     except Exception as e:
         return False
 
+# replace this with /usr/share/nmap/nmap-mac-prefixes    
 def vendor_lookup(ethsrc):
     vendor_eth = ethsrc.replace(":", "-")
     url = "http://api.macvendors.com/{}".format(vendor_eth)
