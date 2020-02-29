@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
+import nmap
 import json
 import sys
-import requests
 import click
 import netifaces as ni
-import pprint
-import sys
-import netaddr
-from netaddr import IPNetwork, IPAddress
 import logging
-import imp
+
+from netaddr import IPNetwork, IPAddress
 from scapy.config import conf  
 conf.ipv6_enabled = False
 from scapy.all import sr,srp,Ether,ARP,IP,ICMP,TCP,sr1,RandShort,conf #Import needed modules from scapy
@@ -24,6 +21,8 @@ from blessed import Terminal
 
 __author__ = "Phreaklets"
 
+iface_scapy = ""
+
 @click.group()
 def main():
     """
@@ -32,7 +31,7 @@ def main():
     pass
 
 def arpsweep_multiprocessing(ip):
-    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(ip)), timeout = 0.1,iface="eth0",inter=0.1,verbose=False)
+    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst = str(ip)), timeout = 0.3, iface=iface_scapy, inter=0.1, verbose=False)
     for snd,rcv in ans:
         mac = rcv.sprintf(r"%Ether.src%")
         ip = rcv.sprintf(r"%ARP.psrc%")
@@ -46,33 +45,37 @@ def is_netrange(cidr):
         tmp = IPNetwork(cidr)
         return True
     except Exception as e:
-        print("{} is not a valid IP Network range".format(cidr))
         return False
 
 @main.command()
-@click.option('--net', '-n', 'net_', help='IP range for scanning', required=True)
 @click.option('--json', '-j', 'json_', is_flag=True)
-@click.argument('command')
-def scan(command, net_, json_):
+@click.option('--iface', '-i', 'iface_', default="eth0")
+@click.argument('net_')
+def arp(net_, iface_, json_):
     t = Terminal()
     if not is_netrange(net_):
-        sys.exit(1)        
+        click.echo("Invalid netrange: {}".format(net_))
+        sys.exit(1)
+        
     netr = IPNetwork(net_)
     results = {}
-    if command == 'arp':
-        if not json_:
-            print(t.cyan("Starting ARP sweep"))
-        p = Pool(64)
+    
+    if iface_ != "eth0":
+        global iface_scapy
+        iface_scapy = iface_
+    if not json_:
+        print(t.cyan("Starting ARP sweep"))
+    p = Pool(64)
 
-        try:
-            temp_results = p.map(arpsweep_multiprocessing, list(netr))
-            results = [_f for _f in temp_results if _f]
-        except KeyboardInterrupt:
-            sys.exit()
-            p.terminate()
-            p.join()
-        p.close()
+    try:
+        temp_results = p.map(arpsweep_multiprocessing, list(netr))
+        results = [_f for _f in temp_results if _f]
+    except KeyboardInterrupt:
+        sys.exit()
+        p.terminate()
         p.join()
+    p.close()
+    p.join()
 
     if json_:
         json_output=json.dumps({'live_hosts':results})
