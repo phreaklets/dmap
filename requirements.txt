@@ -1,10 +1,10 @@
-clint==0.5.1
-kamene==0.32
 Click==7.0
-netifaces==0.10.9
+netifaces==0.10.4
 blessed==1.15.0
-requests==2.9.1
-Pygments==2.1
-docopt==0.6.2
+scapy==2.4.3
+kamene==0.32
+Pygments==2.2.0
 netaddr==0.7.19
-scapy==2.4.2.dev20
+clint==0.5.1
+docopt==0.6.2
+python-nmap==0.6.1
